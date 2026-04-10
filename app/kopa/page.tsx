@@ -66,7 +66,7 @@ export default function KopaPage() {
 
         <Section
           title="Bostad och kontantinsats"
-          description="Bolanetaket ar 85 % av marknadsvardet. Minst 15 % maste vara egen kontantinsats."
+          description="Bolanetaket ar 90 % av marknadsvardet (galler fran 1 april 2026). Minst 10 % maste vara egen kontantinsats."
         >
           <NumberInput
             label="Bostadens pris"
@@ -85,7 +85,7 @@ export default function KopaPage() {
             label="Hushallets brutto arsinkomst"
             value={grossAnnualIncome}
             onChange={setGrossAnnualIncome}
-            help="Anvands for att rakna skuldkvot (> 4,5x ger extra amortering)."
+            help="Anvands for att visa skuldkvot. Det skarpta amorteringskravet (> 4,5x) slopades 1 april 2026."
           />
           <NumberInput
             label="Hushallets netto manadsinkomst"

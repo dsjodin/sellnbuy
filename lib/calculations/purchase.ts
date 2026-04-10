@@ -2,8 +2,6 @@ import {
   FI_AMORT_HIGH_LTV,
   FI_AMORT_LOW_LTV,
   FI_AMORT_MID_LTV,
-  FI_DTI_EXTRA,
-  FI_DTI_THRESHOLD,
   FI_LTV_CAP,
   FI_LTV_HIGH_THRESHOLD,
   FI_LTV_MID_THRESHOLD,
@@ -37,7 +35,6 @@ export function calculateAmortization(
 
   const debtToIncome =
     grossAnnualIncome > 0 ? loan / grossAnnualIncome : 0;
-  if (debtToIncome > FI_DTI_THRESHOLD) rate += FI_DTI_EXTRA;
 
   const monthly = (loan * rate) / 12;
   return { ratePerYear: rate, monthly, debtToIncome };

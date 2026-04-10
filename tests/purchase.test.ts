@@ -7,11 +7,11 @@ import {
 } from "@/lib/calculations";
 
 describe("calculateLoan", () => {
-  it("begransar lanet till 85 procent LTV-tak", () => {
-    const result = calculateLoan(4_000_000, 400_000);
-    expect(result.loan).toBe(3_400_000);
-    expect(result.downPayment).toBe(600_000);
-    expect(result.ltv).toBeCloseTo(0.85);
+  it("begransar lanet till 90 procent LTV-tak", () => {
+    const result = calculateLoan(4_000_000, 200_000);
+    expect(result.loan).toBe(3_600_000);
+    expect(result.downPayment).toBe(400_000);
+    expect(result.ltv).toBeCloseTo(0.9);
   });
 
   it("anvander forfragat lan nar kontantinsatsen ar stor nog", () => {
@@ -22,10 +22,10 @@ describe("calculateLoan", () => {
 });
 
 describe("calculateAmortization", () => {
-  it("ger 3 procent vid LTV 85 och skuldkvot over 4.5", () => {
+  it("ger bara 2 procent vid LTV 85 aven med hog skuldkvot (nya regler)", () => {
     const result = calculateAmortization(3_400_000, 4_000_000, 600_000);
-    expect(result.ratePerYear).toBeCloseTo(0.03);
-    expect(result.monthly).toBeCloseTo(8_500);
+    expect(result.ratePerYear).toBeCloseTo(0.02);
+    expect(result.monthly).toBeCloseTo(3_400_000 * 0.02 / 12);
     expect(result.debtToIncome).toBeCloseTo(3_400_000 / 600_000);
   });
 
@@ -35,7 +35,7 @@ describe("calculateAmortization", () => {
     expect(result.monthly).toBeCloseTo(2_000);
   });
 
-  it("ger 0 procent vid LTV under 50 och skuldkvot under 4.5", () => {
+  it("ger 0 procent vid LTV under 50", () => {
     const result = calculateAmortization(1_800_000, 4_000_000, 450_000);
     expect(result.ratePerYear).toBe(0);
     expect(result.monthly).toBe(0);
@@ -73,12 +73,13 @@ describe("calculateKalp", () => {
       household: { adults: 2, children: ["child4_6"] },
     });
     expect(result.loan).toBe(3_400_000);
-    expect(result.amortizationRate).toBeCloseTo(0.03);
-    expect(result.amortizationMonthly).toBeCloseTo(8_500);
+    expect(result.amortizationRate).toBeCloseTo(0.02);
+    // 3 400 000 * 0.02 / 12 = 5 666.67
+    expect(result.amortizationMonthly).toBeCloseTo(5_666.67, 1);
     expect(result.stressedInterestMonthly).toBeCloseTo(19_833.33, 1);
     expect(result.livingCostSchablon).toBe(19_000);
-    // 45 000 - 19 833.33 - 8 500 - 4 500 - 19 000 = -6 833.33
-    expect(result.kalp).toBeCloseTo(-6_833.33, 1);
+    // 45 000 - 19 833.33 - 5 666.67 - 4 500 - 19 000 = -4 000
+    expect(result.kalp).toBeCloseTo(-4_000, 1);
     expect(result.approved).toBe(false);
   });
 
