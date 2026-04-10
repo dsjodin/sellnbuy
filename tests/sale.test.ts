@@ -13,6 +13,7 @@ describe("calculateSale", () => {
       purchasePrice: 2_000_000,
       brokerFee: 80_000,
       sellingCosts: 0,
+      originationCosts: 0,
       improvements: [],
       currentYear: 2025,
       loanPayoff: 0,
@@ -20,7 +21,7 @@ describe("calculateSale", () => {
     expect(result.gain).toBe(1_420_000);
     expect(result.taxableGain).toBe(1_420_000);
     expect(result.capitalGainsTax).toBe(312_400);
-    expect(result.netProceeds).toBe(3_500_000 - 80_000 - 312_400);
+    expect(result.kvarIPlanboken).toBe(3_500_000 - 80_000 - 312_400);
   });
 
   it("ger 0 kr i skatt vid negativ vinst", () => {
@@ -29,6 +30,7 @@ describe("calculateSale", () => {
       purchasePrice: 2_500_000,
       brokerFee: 50_000,
       sellingCosts: 0,
+      originationCosts: 0,
       improvements: [],
       currentYear: 2025,
       loanPayoff: 0,
@@ -38,19 +40,41 @@ describe("calculateSale", () => {
     expect(result.capitalGainsTax).toBe(0);
   });
 
-  it("drar loneavdrag fran netto efter loseskuld", () => {
+  it("drar loseskuld fran kvar-i-planboken", () => {
     const result = calculateSale({
       salePrice: 3_000_000,
       purchasePrice: 2_000_000,
       brokerFee: 60_000,
       sellingCosts: 0,
+      originationCosts: 0,
       improvements: [],
       currentYear: 2025,
       loanPayoff: 1_500_000,
     });
-    expect(result.netProceeds).toBe(
+    expect(result.kvarIPlanboken).toBe(
       3_000_000 - 60_000 - result.capitalGainsTax - 1_500_000,
     );
+  });
+
+  it("matchar anvandarens referensuppstallning med pantbrev och uppskov", () => {
+    const result = calculateSale({
+      salePrice: 3_500_000,
+      purchasePrice: 1_850_000,
+      brokerFee: 80_000,
+      sellingCosts: 60_000,
+      originationCosts: 58_000,
+      improvements: [
+        { year: 2020, amount: 980_000, kind: "base" },
+      ],
+      currentYear: 2026,
+      loanPayoff: 1_890_000,
+    });
+    expect(result.totalSellingCosts).toBe(140_000);
+    expect(result.deductibleImprovements).toBe(980_000);
+    expect(result.gain).toBe(472_000);
+    expect(result.capitalGainsTax).toBe(103_840);
+    expect(result.kvarIPlanboken).toBe(1_366_160);
+    expect(result.kvarVidUppskov).toBe(1_470_000);
   });
 });
 

@@ -41,26 +41,27 @@ export function calculateSale(input: SaleInput): SaleResult {
     input.improvements,
     input.currentYear,
   );
+  const totalSellingCosts = input.brokerFee + input.sellingCosts;
   const gain =
     input.salePrice -
-    input.brokerFee -
-    input.sellingCosts -
+    totalSellingCosts -
     input.purchasePrice -
-    deductibleImprovements;
+    deductibleImprovements -
+    input.originationCosts;
   const taxableGain = Math.max(0, gain);
   const capitalGainsTax = Math.floor(taxableGain * CAPITAL_GAIN_TAX_RATE);
-  const netProceeds =
-    input.salePrice -
-    input.brokerFee -
-    input.sellingCosts -
-    capitalGainsTax -
-    input.loanPayoff;
+  const kvarIPlanboken =
+    input.salePrice - totalSellingCosts - capitalGainsTax - input.loanPayoff;
+  const kvarVidUppskov =
+    input.salePrice - totalSellingCosts - input.loanPayoff;
   return {
     deductibleImprovements,
+    totalSellingCosts,
     gain,
     taxableGain,
     capitalGainsTax,
-    netProceeds,
+    kvarIPlanboken,
+    kvarVidUppskov,
   };
 }
 

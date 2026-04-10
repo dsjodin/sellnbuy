@@ -14,6 +14,7 @@ export interface SaleInput {
   purchasePrice: number;
   brokerFee: number;
   sellingCosts: number;
+  originationCosts: number;
   improvements: ImprovementEntry[];
   currentYear: number;
   loanPayoff: number;
@@ -21,10 +22,12 @@ export interface SaleInput {
 
 export interface SaleResult {
   deductibleImprovements: number;
+  totalSellingCosts: number;
   gain: number;
   taxableGain: number;
   capitalGainsTax: number;
-  netProceeds: number;
+  kvarIPlanboken: number;
+  kvarVidUppskov: number;
 }
 
 export interface UppskovInput {

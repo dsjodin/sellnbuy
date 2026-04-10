@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { NumberInput } from "@/components/NumberInput";
 import { ResultRow } from "@/components/ResultRow";
 import { Section } from "@/components/Section";
+import { formatKr } from "@/lib/format";
 import {
   calculateRanteskillnad,
   calculateSale,
@@ -22,13 +23,14 @@ export default function SaljaPage() {
   const currentYear = new Date().getFullYear();
 
   const [salePrice, setSalePrice] = useState(3_500_000);
-  const [purchasePrice, setPurchasePrice] = useState(2_000_000);
+  const [purchasePrice, setPurchasePrice] = useState(1_850_000);
   const [brokerFee, setBrokerFee] = useState(80_000);
-  const [sellingCosts, setSellingCosts] = useState(0);
-  const [loanPayoff, setLoanPayoff] = useState(1_500_000);
+  const [sellingCosts, setSellingCosts] = useState(60_000);
+  const [originationCosts, setOriginationCosts] = useState(58_000);
+  const [loanPayoff, setLoanPayoff] = useState(1_890_000);
 
   const [improvements, setImprovements] = useState<ImprovementRow[]>([
-    { id: 1, year: currentYear - 2, amount: 0, kind: "base" },
+    { id: 1, year: currentYear - 4, amount: 980_000, kind: "base" },
   ]);
 
   const [useUppskov, setUseUppskov] = useState(false);
@@ -51,6 +53,7 @@ export default function SaljaPage() {
       purchasePrice,
       brokerFee,
       sellingCosts,
+      originationCosts,
       improvements: entries,
       currentYear,
       loanPayoff,
@@ -60,6 +63,7 @@ export default function SaljaPage() {
     purchasePrice,
     brokerFee,
     sellingCosts,
+    originationCosts,
     improvements,
     currentYear,
     loanPayoff,
@@ -87,7 +91,7 @@ export default function SaljaPage() {
   );
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
+    <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
       <div className="space-y-6">
         <h1 className="text-2xl font-semibold text-slate-900">Saljkalkyl</h1>
 
@@ -113,21 +117,27 @@ export default function SaljaPage() {
             onChange={setSellingCosts}
           />
           <NumberInput
+            label="Pantbrev / lagfart"
+            value={originationCosts}
+            onChange={setOriginationCosts}
+            help="Ursprungskostnader vid kopet. Avdragsgilla fran vinsten."
+          />
+          <NumberInput
             label="Skuld att losa vid tilltradet"
             value={loanPayoff}
             onChange={setLoanPayoff}
-            help="Dras av fran nettot men inte fran vinstberakningen."
+            help="Dras av fran kvar i planboken men inte fran vinstberakningen."
           />
         </Section>
 
         <Section
-          title="Forbattringsutgifter"
+          title="Forbattringsutgifter (renoveringar)"
           description="Grundforbattringar ar alltid avdragsgilla. Reparationsforbattringar endast inom de senaste 5 aren. Per kalenderar maste summan overstiga 5 000 kr."
         >
           {improvements.map((row) => (
             <div
               key={row.id}
-              className="grid grid-cols-1 gap-3 sm:grid-cols-[120px_1fr_160px_40px]"
+              className="grid grid-cols-1 gap-3 sm:grid-cols-[120px_1fr_180px_40px]"
             >
               <NumberInput
                 label="Ar"
@@ -262,27 +272,74 @@ export default function SaljaPage() {
       <aside className="space-y-4 lg:sticky lg:top-6 lg:h-fit">
         <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900">Resultat</h2>
+
           <div className="mt-4">
+            <ResultRow label="Bolan" value={loanPayoff} />
+            <ResultRow label="Forsaljningspris" value={salePrice} />
+            <ResultRow label="Inkopspris" value={purchasePrice} />
             <ResultRow
-              label="Avdragsgilla forbattringar"
+              label="Renoveringskostnader"
               value={saleResult.deductibleImprovements}
             />
-            <ResultRow label="Vinst" value={saleResult.gain} />
             <ResultRow
-              label="Skattepliktig vinst"
-              value={saleResult.taxableGain}
+              label="Forsaljningskostnader"
+              value={saleResult.totalSellingCosts}
             />
+            <ResultRow label="Pantbrev / lagfart" value={originationCosts} />
+          </div>
+
+          <div className="mt-4 border-t-2 border-slate-300 pt-3">
+            <div className="flex items-baseline justify-between">
+              <span className="text-sm font-bold uppercase tracking-wide text-slate-900">
+                Vinst
+              </span>
+              <span
+                className={`text-lg font-semibold ${
+                  saleResult.gain >= 0 ? "text-slate-900" : "text-rose-700"
+                }`}
+              >
+                {formatKr(saleResult.gain)}
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-3">
             <ResultRow
-              label="Vinstskatt (22 %)"
+              label="Vinstskatt att betala (22 %)"
               value={saleResult.capitalGainsTax}
               tone="negative"
             />
-            <ResultRow
-              label="Netto efter skatt och losen"
-              value={saleResult.netProceeds}
-              emphasize
-              tone="positive"
-            />
+          </div>
+
+          <div className="mt-4 space-y-2 rounded-md bg-amber-100 p-3 ring-1 ring-amber-200">
+            <div className="flex items-baseline justify-between">
+              <span className="text-sm font-bold text-slate-900">
+                Kvar i planboken
+              </span>
+              <span
+                className={`text-lg font-bold ${
+                  saleResult.kvarIPlanboken >= 0
+                    ? "text-slate-900"
+                    : "text-rose-700"
+                }`}
+              >
+                {formatKr(saleResult.kvarIPlanboken)}
+              </span>
+            </div>
+            <div className="flex items-baseline justify-between">
+              <span className="text-sm italic text-slate-900">
+                Kvar vid uppskov
+              </span>
+              <span
+                className={`text-base italic ${
+                  saleResult.kvarVidUppskov >= 0
+                    ? "text-slate-900"
+                    : "text-rose-700"
+                }`}
+              >
+                {formatKr(saleResult.kvarVidUppskov)}
+              </span>
+            </div>
           </div>
         </div>
 
