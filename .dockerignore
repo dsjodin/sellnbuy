@@ -6,5 +6,6 @@ tests
 *.md
 Dockerfile
 .dockerignore
+docker-compose.yml
 npm-debug.log
 .env*
