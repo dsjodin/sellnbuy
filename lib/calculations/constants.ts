@@ -28,6 +28,12 @@ export const IMPROVEMENT_CATEGORIES: ImprovementCategory[] = [
     hint: "Ny yta eller helt ny byggdel (t.ex. tillbyggnad, inglasat uterum, garage).",
   },
   {
+    id: "pool",
+    label: "Pool, pooldack eller spa",
+    kind: "base",
+    hint: "Pool och poolrelaterade installationer (t.ex. markpool, pooldack, bastu, spa) raknas som grundforbattring nar de tillfors bostaden for forsta gangen.",
+  },
+  {
     id: "standard_kitchen",
     label: "Nytt kok (standardhojning)",
     kind: "base",

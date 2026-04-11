@@ -4,6 +4,7 @@ export type ImprovementKind = "base" | "repair";
 
 export type ImprovementCategoryId =
   | "extension"
+  | "pool"
   | "standard_kitchen"
   | "standard_bath"
   | "standard_other"
