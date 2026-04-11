@@ -4,20 +4,60 @@ import { useMemo, useState } from "react";
 import { NumberInput } from "@/components/NumberInput";
 import { ResultRow } from "@/components/ResultRow";
 import { Section } from "@/components/Section";
+import { TextInput } from "@/components/TextInput";
 import { formatKr } from "@/lib/format";
 import {
+  auditImprovements,
   calculateRanteskillnad,
   calculateSale,
   calculateUppskov,
+  IMPROVEMENT_CATEGORIES,
 } from "@/lib/calculations";
-import type { ImprovementEntry } from "@/lib/calculations";
+import type {
+  ImprovementCategoryId,
+  ImprovementEntry,
+  ImprovementIssue,
+  ImprovementKind,
+} from "@/lib/calculations";
 
 interface ImprovementRow {
   id: number;
   year: number;
   amount: number;
-  kind: "base" | "repair";
+  category: ImprovementCategoryId;
+  description: string;
+  hasReceipt: boolean;
 }
+
+const CATEGORY_BY_ID = new Map(
+  IMPROVEMENT_CATEGORIES.map((c) => [c.id, c] as const),
+);
+
+function kindForCategory(id: ImprovementCategoryId): ImprovementKind {
+  return CATEGORY_BY_ID.get(id)?.kind ?? "base";
+}
+
+const ISSUE_LABELS: Record<
+  ImprovementIssue,
+  { text: string; tone: "hard" | "soft" }
+> = {
+  repair_too_old: {
+    text: "Reparation aldre an 5 ar - raknas inte med",
+    tone: "hard",
+  },
+  below_threshold: {
+    text: "Arssumma under 5 000 kr - raknas inte med",
+    tone: "hard",
+  },
+  no_description: {
+    text: "Lagg till en kort beskrivning",
+    tone: "soft",
+  },
+  no_receipt: {
+    text: "Bocka i kvitto for att vara trygg vid en revision",
+    tone: "soft",
+  },
+};
 
 export default function SaljaPage() {
   const currentYear = new Date().getFullYear();
@@ -30,7 +70,14 @@ export default function SaljaPage() {
   const [loanPayoff, setLoanPayoff] = useState(1_890_000);
 
   const [improvements, setImprovements] = useState<ImprovementRow[]>([
-    { id: 1, year: currentYear - 4, amount: 980_000, kind: "base" },
+    {
+      id: 1,
+      year: currentYear - 4,
+      amount: 980_000,
+      category: "standard_kitchen",
+      description: "Nytt kok",
+      hasReceipt: true,
+    },
   ]);
 
   const [useUppskov, setUseUppskov] = useState(false);
@@ -42,32 +89,49 @@ export default function SaljaPage() {
   const [referenceRate, setReferenceRate] = useState(0.02);
   const [remainingYears, setRemainingYears] = useState(3);
 
-  const saleResult = useMemo(() => {
-    const entries: ImprovementEntry[] = improvements.map((row) => ({
-      year: row.year,
-      amount: row.amount,
-      kind: row.kind,
-    }));
-    return calculateSale({
+  const improvementEntries = useMemo<ImprovementEntry[]>(
+    () =>
+      improvements.map((row) => ({
+        year: row.year,
+        amount: row.amount,
+        kind: kindForCategory(row.category),
+        category: row.category,
+        description: row.description,
+        hasReceipt: row.hasReceipt,
+      })),
+    [improvements],
+  );
+
+  const saleResult = useMemo(
+    () =>
+      calculateSale({
+        salePrice,
+        purchasePrice,
+        brokerFee,
+        sellingCosts,
+        originationCosts,
+        improvements: improvementEntries,
+        currentYear,
+        loanPayoff,
+      }),
+    [
       salePrice,
       purchasePrice,
       brokerFee,
       sellingCosts,
       originationCosts,
-      improvements: entries,
+      improvementEntries,
       currentYear,
       loanPayoff,
-    });
-  }, [
-    salePrice,
-    purchasePrice,
-    brokerFee,
-    sellingCosts,
-    originationCosts,
-    improvements,
-    currentYear,
-    loanPayoff,
-  ]);
+    ],
+  );
+
+  const rowAudits = useMemo(
+    () => auditImprovements(improvementEntries, currentYear),
+    [improvementEntries, currentYear],
+  );
+
+  const includedCount = rowAudits.filter((a) => a.included).length;
 
   const uppskovResult = useMemo(
     () =>
@@ -132,57 +196,135 @@ export default function SaljaPage() {
 
         <Section
           title="Forbattringsutgifter (renoveringar)"
-          description="Grundforbattringar ar alltid avdragsgilla. Reparationsforbattringar endast inom de senaste 5 aren. Per kalenderar maste summan overstiga 5 000 kr."
+          description="Grundforbattringar (ny-, till- eller ombyggnad, eller hojning till hogre standard) ar alltid avdragsgilla. Reparationer drar du bara av om bostaden vid forsaljningen ar i battre skick an vid kopet, och arbetet ar utfort de senaste 5 aren. Per kalenderar maste summan overstiga 5 000 kr. Spara alltid kvitton/fakturor - Skatteverket kan begara dem."
         >
-          {improvements.map((row) => (
-            <div
-              key={row.id}
-              className="grid grid-cols-1 gap-3 sm:grid-cols-[120px_1fr_180px_40px]"
-            >
-              <NumberInput
-                label="Ar"
-                value={row.year}
-                suffix="ar"
-                onChange={(v) =>
-                  updateRow(setImprovements, row.id, { year: Math.round(v) })
-                }
-              />
-              <NumberInput
-                label="Belopp"
-                value={row.amount}
-                onChange={(v) =>
-                  updateRow(setImprovements, row.id, { amount: v })
-                }
-              />
-              <label className="block">
-                <span className="block text-sm font-medium text-slate-700">
-                  Typ
-                </span>
-                <select
-                  value={row.kind}
-                  onChange={(e) =>
-                    updateRow(setImprovements, row.id, {
-                      kind: e.target.value as "base" | "repair",
-                    })
-                  }
-                  className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
-                >
-                  <option value="base">Grundforbattring</option>
-                  <option value="repair">Reparationsforbattring</option>
-                </select>
-              </label>
-              <button
-                type="button"
-                onClick={() =>
-                  setImprovements((rows) => rows.filter((r) => r.id !== row.id))
-                }
-                className="self-end rounded-md border border-slate-300 px-2 py-2 text-sm text-slate-500 hover:border-rose-400 hover:text-rose-600"
-                aria-label="Ta bort rad"
+          {improvements.map((row, i) => {
+            const audit = rowAudits[i];
+            const category = CATEGORY_BY_ID.get(row.category);
+            return (
+              <div
+                key={row.id}
+                className={`space-y-3 rounded-md border p-3 ${
+                  audit && !audit.included
+                    ? "border-rose-200 bg-rose-50/40"
+                    : "border-slate-200 bg-slate-50/40"
+                }`}
               >
-                x
-              </button>
-            </div>
-          ))}
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_110px_160px_40px]">
+                  <label className="block">
+                    <span className="block text-sm font-medium text-slate-700">
+                      Kategori
+                    </span>
+                    <select
+                      value={row.category}
+                      onChange={(e) =>
+                        updateRow(setImprovements, row.id, {
+                          category: e.target.value as ImprovementCategoryId,
+                        })
+                      }
+                      className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm"
+                    >
+                      <optgroup label="Grundforbattring">
+                        {IMPROVEMENT_CATEGORIES.filter(
+                          (c) => c.kind === "base",
+                        ).map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.label}
+                          </option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="Reparation">
+                        {IMPROVEMENT_CATEGORIES.filter(
+                          (c) => c.kind === "repair",
+                        ).map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.label}
+                          </option>
+                        ))}
+                      </optgroup>
+                    </select>
+                  </label>
+                  <NumberInput
+                    label="Ar"
+                    value={row.year}
+                    suffix="ar"
+                    onChange={(v) =>
+                      updateRow(setImprovements, row.id, {
+                        year: Math.round(v),
+                      })
+                    }
+                  />
+                  <NumberInput
+                    label="Belopp"
+                    value={row.amount}
+                    onChange={(v) =>
+                      updateRow(setImprovements, row.id, { amount: v })
+                    }
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setImprovements((rows) =>
+                        rows.filter((r) => r.id !== row.id),
+                      )
+                    }
+                    className="self-end rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-500 hover:border-rose-400 hover:text-rose-600"
+                    aria-label="Ta bort rad"
+                  >
+                    x
+                  </button>
+                </div>
+
+                <TextInput
+                  label="Beskrivning"
+                  value={row.description}
+                  placeholder="t.ex. Nytt kok fran IKEA, installerat Q3"
+                  onChange={(v) =>
+                    updateRow(setImprovements, row.id, { description: v })
+                  }
+                />
+
+                <label className="flex items-start gap-2 text-xs text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={row.hasReceipt}
+                    onChange={(e) =>
+                      updateRow(setImprovements, row.id, {
+                        hasReceipt: e.target.checked,
+                      })
+                    }
+                    className="mt-0.5"
+                  />
+                  <span>
+                    <span className="font-medium text-slate-700">
+                      Jag har kvitto eller faktura sparade.
+                    </span>{" "}
+                    {category?.hint}
+                  </span>
+                </label>
+
+                {audit && audit.issues.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {audit.issues.map((issue) => {
+                      const spec = ISSUE_LABELS[issue];
+                      const cls =
+                        spec.tone === "hard"
+                          ? "bg-rose-50 text-rose-800 ring-rose-200"
+                          : "bg-amber-50 text-amber-800 ring-amber-200";
+                      return (
+                        <span
+                          key={issue}
+                          className={`rounded-full px-2 py-0.5 text-xs ring-1 ${cls}`}
+                        >
+                          {spec.text}
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
           <button
             type="button"
             onClick={() =>
@@ -192,7 +334,9 @@ export default function SaljaPage() {
                   id: Date.now(),
                   year: currentYear,
                   amount: 0,
-                  kind: "base",
+                  category: "extension",
+                  description: "",
+                  hasReceipt: false,
                 },
               ])
             }
@@ -200,6 +344,16 @@ export default function SaljaPage() {
           >
             Lagg till rad
           </button>
+          {improvements.length > 0 && (
+            <div className="flex items-baseline justify-between border-t border-slate-200 pt-3 text-sm">
+              <span className="text-slate-600">
+                {includedCount} av {improvements.length} rader raknas med
+              </span>
+              <span className="font-semibold text-slate-900">
+                {formatKr(saleResult.deductibleImprovements)}
+              </span>
+            </div>
+          )}
         </Section>
 
         <Section title="Uppskov">

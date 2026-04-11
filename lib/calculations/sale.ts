@@ -5,6 +5,8 @@ import {
 } from "./constants";
 import type {
   ImprovementEntry,
+  ImprovementIssue,
+  ImprovementRowAudit,
   RanteskillnadInput,
   RanteskillnadResult,
   SaleInput,
@@ -34,6 +36,55 @@ export function calculateDeductibleImprovements(
     if (sum > IMPROVEMENT_MIN_THRESHOLD_SEK) total += sum;
   }
   return total;
+}
+
+// Diagnostik per rad. Anvands av UI for att visa varningar: exkluderade
+// reparationer, rader under 5 000 kr-troskeln, samt mjuka paminnelser om
+// saknad beskrivning eller kvitto. Den harda exkluderingslogiken speglar
+// calculateDeductibleImprovements sa att det finns en enda sanning.
+export function auditImprovements(
+  entries: ImprovementEntry[],
+  currentYear: number,
+): ImprovementRowAudit[] {
+  const byYear = new Map<number, number>();
+  for (const entry of entries) {
+    if (entry.amount <= 0) continue;
+    if (
+      entry.kind === "repair" &&
+      currentYear - entry.year > REPAIR_LOOKBACK_YEARS
+    ) {
+      continue;
+    }
+    byYear.set(entry.year, (byYear.get(entry.year) ?? 0) + entry.amount);
+  }
+
+  return entries.map((entry) => {
+    const issues: ImprovementIssue[] = [];
+    let included = true;
+    const yearTotal = byYear.get(entry.year) ?? 0;
+
+    if (
+      entry.kind === "repair" &&
+      currentYear - entry.year > REPAIR_LOOKBACK_YEARS
+    ) {
+      issues.push("repair_too_old");
+      included = false;
+    } else if (yearTotal <= IMPROVEMENT_MIN_THRESHOLD_SEK) {
+      issues.push("below_threshold");
+      included = false;
+    }
+
+    if (included) {
+      if (!entry.description || entry.description.trim() === "") {
+        issues.push("no_description");
+      }
+      if (!entry.hasReceipt) {
+        issues.push("no_receipt");
+      }
+    }
+
+    return { issues, included, yearTotal };
+  });
 }
 
 export function calculateSale(input: SaleInput): SaleResult {

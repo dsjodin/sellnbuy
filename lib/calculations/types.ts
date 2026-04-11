@@ -2,11 +2,38 @@ import type { ChildAgeGroup } from "./constants";
 
 export type ImprovementKind = "base" | "repair";
 
+export type ImprovementCategoryId =
+  | "extension"
+  | "standard_kitchen"
+  | "standard_bath"
+  | "standard_other"
+  | "paint"
+  | "floor"
+  | "kitchen_repair"
+  | "bath_repair"
+  | "windows"
+  | "facade"
+  | "repair_other";
+
 export interface ImprovementEntry {
   year: number;
   amount: number;
   kind: ImprovementKind;
-  label?: string;
+  category?: ImprovementCategoryId;
+  description?: string;
+  hasReceipt?: boolean;
+}
+
+export type ImprovementIssue =
+  | "repair_too_old"
+  | "below_threshold"
+  | "no_description"
+  | "no_receipt";
+
+export interface ImprovementRowAudit {
+  issues: ImprovementIssue[];
+  included: boolean;
+  yearTotal: number;
 }
 
 export interface SaleInput {

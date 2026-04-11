@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  auditImprovements,
   calculateDeductibleImprovements,
   calculateRanteskillnad,
   calculateSale,
@@ -174,5 +175,101 @@ describe("calculateRanteskillnad", () => {
       remainingYears: 3,
     });
     expect(result.compensation).toBe(0);
+  });
+});
+
+describe("auditImprovements", () => {
+  it("flaggar reparation aldre an 5 ar som exkluderad", () => {
+    const audits = auditImprovements(
+      [
+        {
+          year: 2018,
+          amount: 50_000,
+          kind: "repair",
+          description: "Ommalning",
+          hasReceipt: true,
+        },
+      ],
+      2025,
+    );
+    expect(audits[0].included).toBe(false);
+    expect(audits[0].issues).toContain("repair_too_old");
+  });
+
+  it("flaggar arssumma under 5 000 kr som exkluderad", () => {
+    const audits = auditImprovements(
+      [
+        {
+          year: 2024,
+          amount: 2_000,
+          kind: "base",
+          description: "Liten justering",
+          hasReceipt: true,
+        },
+        {
+          year: 2024,
+          amount: 2_500,
+          kind: "base",
+          description: "Annan justering",
+          hasReceipt: true,
+        },
+      ],
+      2025,
+    );
+    expect(audits[0].included).toBe(false);
+    expect(audits[1].included).toBe(false);
+    expect(audits[0].issues).toContain("below_threshold");
+    expect(audits[1].issues).toContain("below_threshold");
+    expect(audits[0].yearTotal).toBe(4_500);
+  });
+
+  it("markerar saknad beskrivning som mjuk varning", () => {
+    const audits = auditImprovements(
+      [
+        {
+          year: 2024,
+          amount: 80_000,
+          kind: "base",
+          hasReceipt: true,
+        },
+      ],
+      2025,
+    );
+    expect(audits[0].included).toBe(true);
+    expect(audits[0].issues).toContain("no_description");
+  });
+
+  it("markerar saknat kvitto som mjuk varning", () => {
+    const audits = auditImprovements(
+      [
+        {
+          year: 2024,
+          amount: 80_000,
+          kind: "base",
+          description: "Nytt kok",
+          hasReceipt: false,
+        },
+      ],
+      2025,
+    );
+    expect(audits[0].included).toBe(true);
+    expect(audits[0].issues).toContain("no_receipt");
+  });
+
+  it("inkluderar grundforbattring aldre an 5 ar utan issue", () => {
+    const audits = auditImprovements(
+      [
+        {
+          year: 2005,
+          amount: 200_000,
+          kind: "base",
+          description: "Tillbyggnad",
+          hasReceipt: true,
+        },
+      ],
+      2025,
+    );
+    expect(audits[0].included).toBe(true);
+    expect(audits[0].issues).toEqual([]);
   });
 });
