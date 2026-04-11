@@ -1,0 +1,8 @@
+services:
+  app:
+    build: .
+    image: sellnbuy:latest
+    container_name: sellnbuy
+    ports:
+      - "3005:3000"
+    restart: unless-stopped
